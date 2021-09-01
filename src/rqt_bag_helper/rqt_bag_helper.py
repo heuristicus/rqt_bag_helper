@@ -1,7 +1,10 @@
 import os
+import signal
+
 import rospy
 import rospkg
 import yaml
+import subprocess
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -28,6 +31,9 @@ class RqtBagHelper(Plugin):
     def __init__(self, context):
         super(RqtBagHelper, self).__init__(context)
         self.setObjectName("rqt_bag_helper")
+
+        # Are we recording a rosbag
+        self._recording = False
 
         # Create QWidget
         self._widget = QWidget()
@@ -63,6 +69,9 @@ class RqtBagHelper(Plugin):
         self._widget.findChildren(QPushButton, "loadButton")[0].clicked.connect(
             self._load_file
         )
+
+        self._record_button = self._widget.findChildren(QPushButton, "recordButton")[0]
+        self._record_button.clicked.connect(self._toggle_record)
 
         self._output_edit = self._widget.findChildren(QLineEdit, "outputEdit")[0]
         self._prefix_edit = self._widget.findChildren(QLineEdit, "prefixEdit")[0]
@@ -138,7 +147,7 @@ class RqtBagHelper(Plugin):
 
     def _generate_rosbag_command(self):
         """
-        Convert the values of all the widgets into a rosbag record command that can be run
+        Convert the values of all the widgets into a rosbag record command list that can be run by subprocess.Popen
 
         :return:
         """
@@ -170,7 +179,7 @@ class RqtBagHelper(Plugin):
                 else:
                     cmd_arr.extend([arg, str(val)])
 
-        return " ".join(cmd_arr)
+        return cmd_arr
 
     @staticmethod
     def _set_widget_from_dict(arg_dict, arg_name, widget, default_value):
@@ -254,3 +263,23 @@ class RqtBagHelper(Plugin):
                 self._add_topic(topic)
 
             self._load_args(bag_yaml["args"])
+
+    def _toggle_record(self):
+        """
+        Start or stop recording.
+        :return:
+        """
+        if self._recording:
+            # Because the rosbag record process actually spawns its own subprocess, we have to kill the whole process
+            # group
+            os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
+            self._record_button.setText("Record")
+            self._recording = False
+        else:
+            cmd = self._generate_rosbag_command()
+            cmd.append("/test")
+            # Must run os.setsid to start rosbag record in a separate process group so we don't kill ourselves when
+            # killing the children
+            self._process = subprocess.Popen(cmd, preexec_fn=os.setsid)
+            self._recording = True
+            self._record_button.setText("Stop recording")
