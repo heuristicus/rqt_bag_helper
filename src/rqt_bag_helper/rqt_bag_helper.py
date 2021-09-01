@@ -127,7 +127,53 @@ class RqtBagHelper(Plugin):
         self._chunk_spin.setEnabled(enabled)
         self._buffer_spin.setEnabled(enabled)
 
-    def _set_widget_from_dict(self, arg_dict, arg_name, widget, default_value):
+    @staticmethod
+    def _get_widget_value(widget):
+        if type(widget) == QSpinBox:
+            return widget.value()
+        if type(widget) == QCheckBox:
+            return True if widget.checkState() == QtCore.Qt.Checked else False
+        if type(widget) == QLineEdit:
+            return widget.text()
+
+    def _generate_rosbag_command(self):
+        """
+        Convert the values of all the widgets into a rosbag record command that can be run
+
+        :return:
+        """
+        value_dict = {
+            "--output-name": self._get_widget_value(self._output_edit),
+            "--output-prefix": self._get_widget_value(self._prefix_edit),
+            "--regex": self._get_widget_value(self._regex_edit),
+            "--exclude": self._get_widget_value(self._exclude_regex_edit),
+            "--limit": self._get_widget_value(self._limit_spin),
+            "--max-splits": self._get_widget_value(self._max_split_spin),
+            "--size": self._get_widget_value(self._size_spin),
+            "--duration": self._get_widget_value(self._duration_spin),
+            "--buffsize": self._get_widget_value(self._buffer_spin),
+            "--chunksize": self._get_widget_value(self._chunk_spin),
+            "--split": self._get_widget_value(self._split_check),
+            "--lz4": self._get_widget_value(self._lz4_check),
+            "--bz2": self._get_widget_value(self._bz2_check),
+            "--tcpnodelay": self._get_widget_value(self._tcp_nodelay_check),
+            "--udp": self._get_widget_value(self._udp_check),
+            "--repeat-latched": self._get_widget_value(self._repeat_latched_check),
+            "--publish": self._get_widget_value(self._publish_check),
+        }
+
+        cmd_arr = ["rosbag", "record"]
+        for arg, val in value_dict.items():
+            if val:
+                if type(val) == bool:
+                    cmd_arr.append(arg)
+                else:
+                    cmd_arr.extend([arg, str(val)])
+
+        return " ".join(cmd_arr)
+
+    @staticmethod
+    def _set_widget_from_dict(arg_dict, arg_name, widget, default_value):
         """
         Set the value of a widget using a dict containing the args
         :param arg_dict: Dict containing the args
