@@ -1,0 +1,12 @@
+<library path="src">
+  <class name="rqt bag helper" type="rqt_bag_helper.rqt_bag_helper.RqtBagHelper" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A plugin to record rosbags with monitoring capabilities
+    </description>
+    <qtgui>
+      <label>rqt_bag_helper</label>
+      <icon type="theme">system-help</icon>
+      <statustip>View, modify, and monitor topics during rosbag recording</statustip>
+    </qtgui>
+  </class>
+</library>
