@@ -1,73 +1,72 @@
 args:
-  # See rosbag record -h for information about these arguments
-  # The -a and --node arguments are not supported
-  buffsize: 2048 # MB
-  chunksize: 15360 # KB
-  compression: lz4 # or bz2
-  duration: ""
-  exclude_regex: ""
-  limit: ""
-  max_splits: ""
-  name: ~/tester.bag
-  prefix: "test"
+  buffsize: 2048
+  bz2: true
+  chunksize: 15360
+  duration: 0
+  exclude: ''
+  limit: 0
+  lz4: false
+  max-splits: 0
+  output-name: ''
+  output-prefix: ~/tester.bag
   publish: false
-  regex: ""
-  repeat_latched: false
-  size: 10240 # MB
+  regex: ''
+  repeat-latched: false
+  size: 10240
   split: true
   tcpnodelay: false
   udp: false
 topics:
-  - /os_cloud_node/imu
-  - /os_node/lidar_packets
-  - /joint_states
-  - /tf
-  - /tf_static
-  - /camera/aligned_depth_to_color/camera_info
-  - /camera/aligned_depth_to_color/image_raw
-  - /camera/color/camera_info
-  - /camera/color/image_raw
-  - /pronto_slam/reading_cloud
-  - /pronto_slam/reference_cloud
-  - /pronto_slam/map_cloud
-  - /pronto_slam/prior_map_cloud
-  - /pronto_slam/pose_corrected
-  - /pronto_slam/poses
-  - /pronto_slam/slam_poses
-  - /pronto_slam/pose_graph
-  - /pronto_slam/slam_map_cloud
-  - /pronto_slam/slam_loop_closures
-  - /pronto_slam/slam_last_cloud
-  - /elevation_mapping_lidar_and_camera/elevation_map
-  - /icp_odometry/corrected_pose
-  - /icp_odometry/corrected_cloud
-  - /lidar_exploration/new_ultimate_goal
-  - /terrain_exploration/frontiers
-  - /terrain_exploration/all_frontiers
-  - /terrain_exploration/nodes_to_explore
-  - /terrain_exploration/return_to_node
-  - /terrain_exploration/filtered_map
-  - /terrain_exploration/explored_areas
-  - /terrain_exploration/planner_status
-  - /terrain_exploration/rejected_frontiers
-  - /terrain_exploration/frontier_search_status
-  - /spot/status/battery_states
-  - /spot/status/estop
-  - /spot/status/system_faults
-  - /spot/status/behavior_faults
-  - /spot/status/feet
-  - /spot/odometry
-  - /spot/camera/frontright/compressed
-  - /spot/camera/frontright/camera_info
-  - /spot/camera/frontleft/compressed
-  - /spot/camera/frontleft/camera_info
-  - /spot/depth/frontleft/image
-  - /spot/depth/frontleft/camera_info
-  - /spot/depth/frontright/image
-  - /spot/depth/frontright/camera_info
-  - /spot/depth/left/image
-  - /spot/depth/left/camera_info
-  - /spot/depth/right/image
-  - /spot/depth/right/camera_info
-  - /spot/depth/back/image
-  - /spot/depth/back/camera_info
+- /os_cloud_node/imu
+- /os_node/lidar_packets
+- /joint_states
+- /tf
+- /tf_static
+- /camera/aligned_depth_to_color/camera_info
+- /camera/aligned_depth_to_color/image_raw
+- /camera/color/camera_info
+- /camera/color/image_raw
+- /pronto_slam/reading_cloud
+- /pronto_slam/reference_cloud
+- /pronto_slam/map_cloud
+- /pronto_slam/prior_map_cloud
+- /pronto_slam/pose_corrected
+- /pronto_slam/poses
+- /pronto_slam/slam_poses
+- /pronto_slam/pose_graph
+- /pronto_slam/slam_map_cloud
+- /pronto_slam/slam_loop_closures
+- /pronto_slam/slam_last_cloud
+- /elevation_mapping_lidar_and_camera/elevation_map
+- /icp_odometry/corrected_pose
+- /icp_odometry/corrected_cloud
+- /lidar_exploration/new_ultimate_goal
+- /terrain_exploration/frontiers
+- /terrain_exploration/all_frontiers
+- /terrain_exploration/nodes_to_explore
+- /terrain_exploration/return_to_node
+- /terrain_exploration/filtered_map
+- /terrain_exploration/explored_areas
+- /terrain_exploration/planner_status
+- /terrain_exploration/rejected_frontiers
+- /terrain_exploration/frontier_search_status
+- /spot/status/battery_states
+- /spot/status/estop
+- /spot/status/system_faults
+- /spot/status/behavior_faults
+- /spot/status/feet
+- /spot/odometry
+- /spot/camera/frontright/compressed
+- /spot/camera/frontright/camera_info
+- /spot/camera/frontleft/compressed
+- /spot/camera/frontleft/camera_info
+- /spot/depth/frontleft/image
+- /spot/depth/frontleft/camera_info
+- /spot/depth/frontright/image
+- /spot/depth/frontright/camera_info
+- /spot/depth/left/image
+- /spot/depth/left/camera_info
+- /spot/depth/right/image
+- /spot/depth/right/camera_info
+- /spot/depth/back/image
+- /spot/depth/back/camera_info

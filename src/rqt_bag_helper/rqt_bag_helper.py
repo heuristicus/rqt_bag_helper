@@ -70,6 +70,10 @@ class RqtBagHelper(Plugin):
             self._load_file
         )
 
+        self._widget.findChildren(QPushButton, "saveButton")[0].clicked.connect(
+            self._save_file
+        )
+
         self._record_button = self._widget.findChildren(QPushButton, "recordButton")[0]
         self._record_button.clicked.connect(self._toggle_record)
 
@@ -144,32 +148,38 @@ class RqtBagHelper(Plugin):
         if type(widget) == QLineEdit:
             return widget.text()
 
-    def _generate_rosbag_command(self):
+    def _generate_arg_dict(self):
         """
-        Convert the values of all the widgets into a rosbag record command list that can be run by subprocess.Popen
-
+        Generate a dict of all the arg values, in the format of the yaml
         :return:
         """
-        value_dict = {
-            "--output-name": self._get_widget_value(self._output_edit),
-            "--output-prefix": self._get_widget_value(self._prefix_edit),
-            "--regex": self._get_widget_value(self._regex_edit),
-            "--exclude": self._get_widget_value(self._exclude_regex_edit),
-            "--limit": self._get_widget_value(self._limit_spin),
-            "--max-splits": self._get_widget_value(self._max_split_spin),
-            "--size": self._get_widget_value(self._size_spin),
-            "--duration": self._get_widget_value(self._duration_spin),
-            "--buffsize": self._get_widget_value(self._buffer_spin),
-            "--chunksize": self._get_widget_value(self._chunk_spin),
-            "--split": self._get_widget_value(self._split_check),
-            "--lz4": self._get_widget_value(self._lz4_check),
-            "--bz2": self._get_widget_value(self._bz2_check),
-            "--tcpnodelay": self._get_widget_value(self._tcp_nodelay_check),
-            "--udp": self._get_widget_value(self._udp_check),
-            "--repeat-latched": self._get_widget_value(self._repeat_latched_check),
-            "--publish": self._get_widget_value(self._publish_check),
+        return {
+            "buffsize": self._get_widget_value(self._buffer_spin),
+            "bz2": self._get_widget_value(self._bz2_check),
+            "chunksize": self._get_widget_value(self._chunk_spin),
+            "duration": self._get_widget_value(self._duration_spin),
+            "exclude": self._get_widget_value(self._exclude_regex_edit),
+            "limit": self._get_widget_value(self._limit_spin),
+            "lz4": self._get_widget_value(self._lz4_check),
+            "max-splits": self._get_widget_value(self._max_split_spin),
+            "output-name": self._get_widget_value(self._output_edit),
+            "output-prefix": self._get_widget_value(self._prefix_edit),
+            "publish": self._get_widget_value(self._publish_check),
+            "regex": self._get_widget_value(self._regex_edit),
+            "repeat-latched": self._get_widget_value(self._repeat_latched_check),
+            "size": self._get_widget_value(self._size_spin),
+            "split": self._get_widget_value(self._split_check),
+            "tcpnodelay": self._get_widget_value(self._tcp_nodelay_check),
+            "udp": self._get_widget_value(self._udp_check),
         }
 
+    def _get_topics(self, only_checked=True):
+        """
+        Get the topics in the tree view
+
+        :param only_checked: If true, return only those topics in the list which are checked
+        :return: List of topics
+        """
         topics = []
         for ind in range(0, self._model.rowCount()):
             # The topic column contains the topic name
@@ -183,18 +193,36 @@ class RqtBagHelper(Plugin):
                 == QtCore.Qt.Checked
                 else False
             )
-            if checked:
+            if only_checked:
+                if checked:
+                    topics.append(self._model.data(topic_ind))
+            else:
                 topics.append(self._model.data(topic_ind))
+
+        return topics
+
+    def _generate_rosbag_command(self):
+        """
+        Convert the values of all the widgets into a rosbag record command list that can be run by subprocess.Popen
+
+        :return:
+        """
+        value_dict = self._generate_arg_dict()
 
         cmd_arr = ["rosbag", "record"]
         for arg, val in value_dict.items():
             if val:
+                # Must prepend -- to the args to make them into the args expected by the command
                 if type(val) == bool:
-                    cmd_arr.append(arg)
+                    cmd_arr.append("--" + arg)
                 else:
-                    cmd_arr.extend([arg, str(val)])
+                    if arg in ["output-name", "output-prefix"]:
+                        # When generating the rosbag command, must make sure that directory expansions and so on are
+                        # done, as popen will not do this.
+                        val = os.path.abspath(os.path.expanduser(str(val)))
+                    cmd_arr.extend(["--" + arg, str(val)])
 
-        cmd_arr.extend(topics)
+        cmd_arr.extend(self._get_topics())
 
         print(cmd_arr)
 
@@ -234,26 +262,26 @@ class RqtBagHelper(Plugin):
         else:
             self._set_advanced(False)
 
-        compression_type = args.get("compression").lower()
-        if compression_type and compression_type in ["lz4", "bz2"]:
-            if compression_type == "lz4":
-                self._lz4_check.setCheckState(QtCore.Qt.Checked)
-            elif compression_type == "bz2":
-                self._bz2_check.setCheckState(QtCore.Qt.Checked)
-        else:
+        lz4 = args.get("lz4")
+        bz2 = args.get("bz2")
+
+        self._set_widget_from_dict(args, "lz4", self._lz4_check, False)
+        self._set_widget_from_dict(args, "bz2", self._bz2_check, False)
+        # If both compression types are set, default to using bz2
+        rospy.logwarn("Both bz2 and lz4 compression are set to true, using bz2")
+        if lz4 and bz2:
             self._lz4_check.setCheckState(QtCore.Qt.Unchecked)
-            self._bz2_check.setCheckState(QtCore.Qt.Unchecked)
 
         self._set_widget_from_dict(args, "duration", self._duration_spin, 0)
-        self._set_widget_from_dict(args, "exclude_regex", self._exclude_regex_edit, "")
+        self._set_widget_from_dict(args, "exclude", self._exclude_regex_edit, "")
         self._set_widget_from_dict(args, "limit", self._limit_spin, 0)
-        self._set_widget_from_dict(args, "max_splits", self._max_split_spin, 0)
-        self._set_widget_from_dict(args, "name", self._output_edit, "")
-        self._set_widget_from_dict(args, "prefix", self._prefix_edit, "")
+        self._set_widget_from_dict(args, "max-splits", self._max_split_spin, 0)
+        self._set_widget_from_dict(args, "output-name", self._output_edit, "")
+        self._set_widget_from_dict(args, "output-prefix", self._prefix_edit, "")
         self._set_widget_from_dict(args, "publish", self._publish_check, False)
         self._set_widget_from_dict(args, "regex", self._regex_edit, "")
         self._set_widget_from_dict(
-            args, "repeat_latched", self._repeat_latched_check, False
+            args, "repeat-latched", self._repeat_latched_check, False
         )
         self._set_widget_from_dict(args, "size", self._size_spin, 0)
         self._set_widget_from_dict(args, "split", self._split_check, False)
@@ -261,6 +289,10 @@ class RqtBagHelper(Plugin):
         self._set_widget_from_dict(args, "udp", self._udp_check, False)
 
     def _load_file(self):
+        """
+        Ask the user for a yaml file to load the bag definition
+        :return:
+        """
         options = QFileDialog.Options()
         filename, _ = QFileDialog.getOpenFileName(
             self._widget,
@@ -283,7 +315,24 @@ class RqtBagHelper(Plugin):
 
             self._load_args(bag_yaml["args"])
 
-        self._generate_rosbag_command()
+    def _save_file(self):
+        """
+        Open a dialog to ask the user where they want to save the yaml definition for this bag
+        :return:
+        """
+        options = QFileDialog.Options()
+        filename, _ = QFileDialog.getSaveFileName(
+            self._widget,
+            "Save bag yaml definition",
+            "",
+            "Yaml files (*.yaml *.yml)",
+            options=options,
+        )
+
+        bag_def = {"args": self._generate_arg_dict(), "topics": self._get_topics()}
+
+        with open(filename, "w") as f:
+            f.write(yaml.safe_dump(bag_def))
 
     def _toggle_record(self):
         """
@@ -296,11 +345,12 @@ class RqtBagHelper(Plugin):
             os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
             self._record_button.setText("Record")
             self._recording = False
+            rospy.loginfo("Stopped recording")
         else:
             cmd = self._generate_rosbag_command()
-            cmd.append("/test")
             # Must run os.setsid to start rosbag record in a separate process group so we don't kill ourselves when
             # killing the children
             self._process = subprocess.Popen(cmd, preexec_fn=os.setsid)
             self._recording = True
             self._record_button.setText("Stop recording")
+            rospy.loginfo("Started recording")
