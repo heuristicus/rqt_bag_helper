@@ -114,7 +114,6 @@ class RqtBagHelper(Plugin):
 
         check_item = QStandardItem()
         check_item.setCheckable(True)
-        check_item.setEnabled(False)
         check_item.setCheckState(QtCore.Qt.Checked)
 
         rate_item = QStandardItem()
@@ -171,6 +170,22 @@ class RqtBagHelper(Plugin):
             "--publish": self._get_widget_value(self._publish_check),
         }
 
+        topics = []
+        for ind in range(0, self._model.rowCount()):
+            # The topic column contains the topic name
+            topic_ind = self._model.index(ind, 2)
+            checkbox_ind = self._model.index(ind, 0)
+            # Also check the checkbox status in the record column so we know whether or not to record
+            # Must use CheckStateRole to get the state of the checkbox
+            checked = (
+                True
+                if self._model.data(checkbox_ind, QtCore.Qt.CheckStateRole)
+                == QtCore.Qt.Checked
+                else False
+            )
+            if checked:
+                topics.append(self._model.data(topic_ind))
+
         cmd_arr = ["rosbag", "record"]
         for arg, val in value_dict.items():
             if val:
@@ -178,6 +193,10 @@ class RqtBagHelper(Plugin):
                     cmd_arr.append(arg)
                 else:
                     cmd_arr.extend([arg, str(val)])
+
+        cmd_arr.extend(topics)
+
+        print(cmd_arr)
 
         return cmd_arr
 
@@ -263,6 +282,8 @@ class RqtBagHelper(Plugin):
                 self._add_topic(topic)
 
             self._load_args(bag_yaml["args"])
+
+        self._generate_rosbag_command()
 
     def _toggle_record(self):
         """
