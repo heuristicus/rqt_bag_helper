@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>541</width>
+    <width>1020</width>
     <height>500</height>
    </rect>
   </property>
@@ -26,7 +26,7 @@
      <item>
       <widget class="QPushButton" name="recordButton">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -35,6 +35,345 @@
         <string>Record</string>
        </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="8">
+      <widget class="QLineEdit" name="excludeRegexEdit">
+       <property name="toolTip">
+        <string>Exclude topics matching the follow regular expression (subtracts from -a or regex)</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="9">
+      <widget class="QComboBox" name="comboBox"/>
+     </item>
+     <item row="2" column="7">
+      <widget class="QLabel" name="durationLabel">
+       <property name="text">
+        <string>Max duration</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QSpinBox" name="limitSpinBox">
+       <property name="toolTip">
+        <string>Only record NUM messages on each topic</string>
+       </property>
+       <property name="frame">
+        <bool>true</bool>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="minimum">
+        <number>0</number>
+       </property>
+       <property name="maximum">
+        <number>50000</number>
+       </property>
+       <property name="value">
+        <number>0</number>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="5">
+      <widget class="QLabel" name="regexLabel">
+       <property name="text">
+        <string>Regex</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="7">
+      <widget class="QLabel" name="excludeRegexLabel">
+       <property name="text">
+        <string>Exclude regex</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="8">
+      <widget class="QSpinBox" name="durationSpinBox">
+       <property name="toolTip">
+        <string>Record a bag of maximum duration DURATION</string>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="suffix">
+        <string> sec</string>
+       </property>
+       <property name="maximum">
+        <number>1000000000</number>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="outputLabel">
+       <property name="text">
+        <string>Output file</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="4">
+      <widget class="QSpinBox" name="maxSplitSpinBox">
+       <property name="toolTip">
+        <string>Keep a maximum of N bag files, when reaching the maximum erase the oldest one to keep a constant number of files.</string>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="maximum">
+        <number>50000</number>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QLineEdit" name="outputEdit">
+       <property name="toolTip">
+        <string>record to bag with NAME.bag</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QLabel" name="maxSplitsLabel">
+       <property name="text">
+        <string>Max splits</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="5">
+      <widget class="QLabel" name="sizeLabel">
+       <property name="text">
+        <string>Max size</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="4">
+      <widget class="QLineEdit" name="prefixEdit">
+       <property name="toolTip">
+        <string>Prepend this string to beginning of bag name (name will always end with date stamp)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="3">
+      <widget class="QLabel" name="prefixLabel">
+       <property name="text">
+        <string>File prefix</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="6">
+      <widget class="QSpinBox" name="sizeSpinBox">
+       <property name="toolTip">
+        <string>Record a bag of maximum size SIZE MB. (Default: infinite)</string>
+       </property>
+       <property name="readOnly">
+        <bool>false</bool>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::NoButtons</enum>
+       </property>
+       <property name="suffix">
+        <string> MB</string>
+       </property>
+       <property name="maximum">
+        <number>1000000000</number>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLabel" name="limitLabel">
+       <property name="text">
+        <string>Message limit</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="6">
+      <widget class="QLineEdit" name="regexEdit">
+       <property name="toolTip">
+        <string>Match topics using regular expressions</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="10">
+      <layout class="QHBoxLayout" name="checkboxParamsLayout">
+       <item>
+        <widget class="QCheckBox" name="splitCheckBox">
+         <property name="toolTip">
+          <string>split the bag when maximum size or duration is reached</string>
+         </property>
+         <property name="text">
+          <string>Split</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="lz4CheckBox">
+         <property name="toolTip">
+          <string>use LZ4 compression</string>
+         </property>
+         <property name="text">
+          <string>LZ4</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="bz2CheckBox">
+         <property name="toolTip">
+          <string>Use BZ2 compression</string>
+         </property>
+         <property name="text">
+          <string>BZ2</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="udpCheckBox">
+         <property name="toolTip">
+          <string>Use the UDP transport hint when subscribing to topics.</string>
+         </property>
+         <property name="text">
+          <string>udp</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="tcpNodelayCheckBox">
+         <property name="toolTip">
+          <string>Use the TCP_NODELAY transport hint when subscribing to topics.</string>
+         </property>
+         <property name="text">
+          <string>TCP_NODELAY</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="repeatLatchedCheckBox">
+         <property name="toolTip">
+          <string>Repeat latched msgs at the start of each new bag file.</string>
+         </property>
+         <property name="text">
+          <string>Repeat latched</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="publishCheckBox">
+         <property name="toolTip">
+          <string>Publish a msg to /begin_write when the recording begins</string>
+         </property>
+         <property name="text">
+          <string>Publish</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="advancedCheckBox">
+         <property name="toolTip">
+          <string>Enable advanced settings</string>
+         </property>
+         <property name="text">
+          <string>Advanced</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="buffLabel">
+         <property name="text">
+          <string>Buffer size</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="bufferSpinBox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="toolTip">
+          <string>Use an internal buffer of SIZE MB (Default: 256, 0 = infinite)</string>
+         </property>
+         <property name="buttonSymbols">
+          <enum>QAbstractSpinBox::NoButtons</enum>
+         </property>
+         <property name="suffix">
+          <string> MB</string>
+         </property>
+         <property name="maximum">
+          <number>1000000000</number>
+         </property>
+         <property name="value">
+          <number>256</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="chunkLabel">
+         <property name="text">
+          <string>Chunk size</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="chunkSpinBox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="toolTip">
+          <string>Advanced. Record to chunks of SIZE KB (Default: 768)</string>
+         </property>
+         <property name="buttonSymbols">
+          <enum>QAbstractSpinBox::NoButtons</enum>
+         </property>
+         <property name="suffix">
+          <string> KB</string>
+         </property>
+         <property name="maximum">
+          <number>1000000000</number>
+         </property>
+         <property name="value">
+          <number>768</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

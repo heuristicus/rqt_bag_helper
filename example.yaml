@@ -1,9 +1,22 @@
-chunksize: 15360
-split: true
-size: 10240
-buffsize: 2048
-outfile: ~/logs/raw/spot.bag
-compression: lz4
+args:
+  # See rosbag record -h for information about these arguments
+  # The -a and --node arguments are not supported
+  buffsize: 2048 # MB
+  chunksize: 15360 # KB
+  compression: lz4 # or bz2
+  duration: ""
+  exclude_regex: ""
+  limit: ""
+  max_splits: ""
+  name: ~/tester.bag
+  prefix: "test"
+  publish: false
+  regex: ""
+  repeat_latched: false
+  size: 10240 # MB
+  split: true
+  tcpnodelay: false
+  udp: false
 topics:
   - /os_cloud_node/imu
   - /os_node/lidar_packets
