@@ -8,9 +8,10 @@ import python_qt_binding.QtCore as QtCore
 import rospkg
 import rospy
 import yaml
+from rostopic import ROSTopicHz
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QSortFilterProxyModel, QStringListModel
-from python_qt_binding.QtGui import QStandardItemModel, QStandardItem
+from python_qt_binding.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
 from python_qt_binding.QtWidgets import (
     QWidget,
     QTreeView,
@@ -22,6 +23,7 @@ from python_qt_binding.QtWidgets import (
     QMessageBox,
     QComboBox,
     QCompleter,
+    QHBoxLayout,
 )
 from qt_gui.plugin import Plugin
 
@@ -33,6 +35,9 @@ class RqtBagHelper(Plugin):
 
     def __init__(self, context):
         super(RqtBagHelper, self).__init__(context)
+
+        rospy.on_shutdown(self._shutdown)
+
         self.setObjectName("rqt_bag_helper")
 
         # Are we recording a rosbag
@@ -56,8 +61,8 @@ class RqtBagHelper(Plugin):
 
         self._model = QStandardItemModel()
         self._topic_tree = self._widget.findChild(QTreeView, "topicTree")
-
-        self._model.setHorizontalHeaderLabels(["Record", "Rate", "Topic"])
+        self._headers = ["Record", "Min rate", "Max rate", "Topic"]
+        self._model.setHorizontalHeaderLabels(self._headers)
         # There are only two sections so they can't be moved anyway
         self._topic_tree.header().setSectionsMovable(False)
         # self._topic_tree.header().setDefaultSectionSize(200)
@@ -67,7 +72,7 @@ class RqtBagHelper(Plugin):
         self._sort_model = QSortFilterProxyModel()
         self._sort_model.setSourceModel(self._model)
         # Filter on topic column
-        self._sort_model.setFilterKeyColumn(2)
+        self._sort_model.setFilterKeyColumn(self._headers.index("Topic"))
         self._topic_tree.setModel(self._sort_model)
         self._widget.findChild(QLineEdit, "filterEdit").textChanged.connect(
             self._sort_model.setFilterFixedString
@@ -153,11 +158,18 @@ class RqtBagHelper(Plugin):
         self._refresh_topics()
         context.add_widget(self._widget)
 
-    def _add_topic(self, topic_name):
+    def _shutdown(self):
+        print("shutting down")
+        if self._recording:
+            self._stop_recording()
+
+    def _add_topic(self, topic_name, min_rate=None, max_rate=None):
         """
         Add a topic to the tree, ignoring duplicates
 
         :param topic_name: Name of the topic to add
+        :param min_rate: Maximum expected rate of the topic
+        :param max_rate: Minimum expected rate of the topic
         :return:
         """
         existing_topics = self._get_topics(only_checked=False)
@@ -170,12 +182,31 @@ class RqtBagHelper(Plugin):
         check_item.setCheckable(True)
         check_item.setCheckState(QtCore.Qt.Checked)
 
-        rate_item = QStandardItem()
-        rate_item.setEditable(False)
+        min_rate_item = QStandardItem(min_rate)
+        min_rate_item.setEditable(True)
+
+        max_rate_item = QStandardItem(max_rate)
+        max_rate_item.setEditable(True)
 
         topic_item = QStandardItem(topic_name)
         topic_item.setEditable(False)
-        parent.appendRow([check_item, rate_item, topic_item])
+
+        parent.appendRow([check_item, min_rate_item, max_rate_item, topic_item])
+
+    def _add_topic_from_yaml(self, topic):
+        """
+        Add a topic from the yaml definition file
+        :param topic: String or dict representing the topic
+        :return:
+        """
+        if type(topic) == str:
+            self._add_topic(topic)
+        else:
+            rate = topic.get("rate")
+            if rate:
+                self._add_topic(topic["name"], rate.get("min"), rate.get("max"))
+            else:
+                self._add_topic(topic["name"])
 
     def _add_topic_from_combo(self):
         """
@@ -254,7 +285,7 @@ class RqtBagHelper(Plugin):
         topics = []
         for ind in range(0, self._model.rowCount()):
             # The topic column contains the topic name
-            topic_ind = self._model.index(ind, 2)
+            topic_ind = self._model.index(ind, self._headers.index("Topic"))
             checkbox_ind = self._model.index(ind, 0)
             # Also check the checkbox status in the record column so we know whether or not to record
             # Must use CheckStateRole to get the state of the checkbox
@@ -271,6 +302,36 @@ class RqtBagHelper(Plugin):
                 topics.append(self._model.data(topic_ind))
 
         return topics
+
+    def _get_topic_rates(self):
+        """
+        Get the min and max rates for topics, if specified
+
+        :return:
+        """
+        rates = {}
+        for ind in range(0, self._model.rowCount()):
+            # The topic column contains the topic name
+            topic = self._model.data(
+                self._model.index(ind, self._headers.index("Topic"))
+            )
+            min_rate = self._model.data(
+                self._model.index(ind, self._headers.index("Min rate")),
+                QtCore.Qt.DisplayRole,
+            )
+            max_rate = self._model.data(
+                self._model.index(ind, self._headers.index("Max rate")),
+                QtCore.Qt.DisplayRole,
+            )
+
+            if min_rate or max_rate:
+                rates[topic] = {}
+                if min_rate:
+                    rates[topic]["min"] = float(min_rate)
+                if max_rate:
+                    rates[topic]["max"] = float(max_rate)
+
+        return rates
 
     def _generate_rosbag_command(self):
         """
@@ -391,7 +452,7 @@ class RqtBagHelper(Plugin):
                 return
 
             for topic in bag_yaml["topics"]:
-                self._add_topic(topic)
+                self._add_topic_from_yaml(topic)
 
             self._load_args(bag_yaml["args"])
 
@@ -409,10 +470,50 @@ class RqtBagHelper(Plugin):
             options=options,
         )
 
-        bag_def = {"args": self._generate_arg_dict(), "topics": self._get_topics()}
-
+        bag_def = {"args": self._generate_arg_dict()}
+        topics = self._get_topics()
+        rates = self._get_topic_rates()
+        topic_list = []
+        for topic in topics:
+            if topic in rates:
+                # Need to write the rates for the topic as well
+                topic_list.append({"name": topic, "rate": rates[topic]})
+            else:
+                # Topic with no fancy stuff
+                topic_list.append(topic)
+        bag_def["topics"] = topic_list
+        print(topic_list)
         with open(filename, "w") as f:
             f.write(yaml.safe_dump(bag_def))
+
+    def _stop_recording(self):
+        if self._recording:
+            # Because the rosbag record process actually spawns its own subprocess, we have to kill the whole process
+            # group
+            os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
+            try:
+                self._record_button.setText("Record")
+            except RuntimeError as e:
+                # when the window is closed this will fail
+                pass
+            self._recording = False
+            # Unregister all the subscribers created to monitor the rates
+            for topic in self._topic_hz_subs:
+                topic.unregister()
+            self._topic_hz = None
+            rospy.loginfo("Stopped recording")
+
+    def _start_recording(self):
+        cmd = self._generate_rosbag_command()
+        if not cmd:
+            return
+        # Must run os.setsid to start rosbag record in a separate process group so we don't kill ourselves when
+        # killing the children
+        self._process = subprocess.Popen(cmd, preexec_fn=os.setsid)
+        self._recording = True
+        self._record_button.setText("Stop recording")
+        self._setup_rate_monitor()
+        rospy.loginfo("Started recording")
 
     def _toggle_record(self):
         """
@@ -420,22 +521,9 @@ class RqtBagHelper(Plugin):
         :return:
         """
         if self._recording:
-            # Because the rosbag record process actually spawns its own subprocess, we have to kill the whole process
-            # group
-            os.killpg(os.getpgid(self._process.pid), signal.SIGINT)
-            self._record_button.setText("Record")
-            self._recording = False
-            rospy.loginfo("Stopped recording")
+            self._stop_recording()
         else:
-            cmd = self._generate_rosbag_command()
-            if not cmd:
-                return
-            # Must run os.setsid to start rosbag record in a separate process group so we don't kill ourselves when
-            # killing the children
-            self._process = subprocess.Popen(cmd, preexec_fn=os.setsid)
-            self._recording = True
-            self._record_button.setText("Stop recording")
-            rospy.loginfo("Started recording")
+            self._start_recording()
 
     def _compression_changed(self, widget, state):
         """
@@ -470,3 +558,79 @@ class RqtBagHelper(Plugin):
         topics = sorted([topic_tuple[0] for topic_tuple in master.getTopicTypes()])
         self._topic_combo.clear()
         self._topic_combo.addItems(topics)
+
+    def _setup_rate_monitor(self):
+        self._topic_hz = ROSTopicHz(-1)
+        self._topic_hz_subs = []
+        for topic in self._get_topics():
+            self._topic_hz_subs.append(
+                rospy.Subscriber(
+                    topic, rospy.AnyMsg, self._topic_hz.callback_hz, callback_args=topic
+                )
+            )
+
+        self._topic_hz_timer = rospy.Timer(rospy.Duration(2), self._update_status)
+
+    def _update_status(self, _):
+        if rospy.is_shutdown():
+            return
+
+        for ind in range(0, self._model.rowCount()):
+            # The topic column contains the topic name
+            topic_ind = self._model.index(ind, self._headers.index("Topic"))
+            checkbox_ind = self._model.index(ind, self._headers.index("Record"))
+            min_rate_ind = self._model.index(ind, self._headers.index("Min rate"))
+            max_rate_ind = self._model.index(ind, self._headers.index("Max rate"))
+            # Also check the checkbox status in the record column so we know whether or not to record
+            # Must use CheckStateRole to get the state of the checkbox
+            checked = (
+                True
+                if self._model.data(checkbox_ind, QtCore.Qt.CheckStateRole)
+                == QtCore.Qt.Checked
+                else False
+            )
+            if not checked:
+                continue
+
+            topic = self._model.data(topic_ind)
+            rate_tuple = self._topic_hz.get_hz(topic)
+            min_rate_item = self._model.itemFromIndex(min_rate_ind)
+            max_rate_item = self._model.itemFromIndex(max_rate_ind)
+            if not rate_tuple:
+                min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.black)))
+                max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.black)))
+                min_rate_item.setToolTip("No messages received")
+                max_rate_item.setToolTip("No messages received")
+            else:
+                rate, min_delta, max_delta, std_dev, _ = rate_tuple
+                min_rate = self._model.data(min_rate_ind, QtCore.Qt.DisplayRole)
+                max_rate = self._model.data(max_rate_ind, QtCore.Qt.DisplayRole)
+                if min_rate and rate < float(min_rate):
+                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.red)))
+                    min_rate_item.setToolTip(
+                        "Message rate is too low ({:.2f}Hz)".format(rate)
+                    )
+                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+                    max_rate_item.setToolTip("")
+                elif max_rate and rate > float(max_rate):
+                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.red)))
+                    max_rate_item.setToolTip(
+                        "Message rate is too high ({:.2f}Hz)".format(rate)
+                    )
+                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+                    min_rate_item.setToolTip("")
+                elif max_rate and min_rate:
+                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.green)))
+                    min_rate_item.setToolTip(
+                        "Message rate is within bounds: {:.2f}Hz".format(rate)
+                    )
+                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.green)))
+                    max_rate_item.setToolTip(
+                        "Message rate is within bounds: {:.2f}Hz".format(rate)
+                    )
+                else:
+                    # White means that the topic is unmonitored
+                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+                    min_rate_item.setToolTip("")
+                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+                    max_rate_item.setToolTip("")
