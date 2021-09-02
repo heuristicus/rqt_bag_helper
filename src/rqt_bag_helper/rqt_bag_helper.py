@@ -619,18 +619,20 @@ class RqtBagHelper(Plugin):
                     )
                     min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
                     min_rate_item.setToolTip("")
-                elif max_rate and min_rate:
-                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.green)))
-                    min_rate_item.setToolTip(
-                        "Message rate is within bounds: {:.2f}Hz".format(rate)
-                    )
-                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.green)))
-                    max_rate_item.setToolTip(
-                        "Message rate is within bounds: {:.2f}Hz".format(rate)
-                    )
                 else:
-                    # White means that the topic is unmonitored
-                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
-                    min_rate_item.setToolTip("")
-                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
-                    max_rate_item.setToolTip("")
+                    if min_rate:
+                        min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.green)))
+                        min_rate_item.setToolTip(
+                            "Message rate is within bounds: {:.2f}Hz".format(rate)
+                        )
+                    else:
+                        min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+                        min_rate_item.setToolTip("")
+                    if max_rate:
+                        max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.green)))
+                        max_rate_item.setToolTip(
+                            "Message rate is within bounds: {:.2f}Hz".format(rate)
+                        )
+                    else:
+                        max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+                        max_rate_item.setToolTip("")
