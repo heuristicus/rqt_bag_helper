@@ -155,6 +155,10 @@ class RqtBagHelper(Plugin):
         :param topic_name: Name of the topic to add
         :return:
         """
+        existing_topics = self._get_topics(only_checked=False)
+        if topic_name in existing_topics:
+            return
+
         parent = self._model.invisibleRootItem()
 
         check_item = QStandardItem()
