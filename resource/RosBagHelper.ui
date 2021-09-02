@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1020</width>
+    <width>1123</width>
     <height>500</height>
    </rect>
   </property>
@@ -380,6 +380,16 @@
       </layout>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="filterEdit">
+     <property name="toolTip">
+      <string>Filter topics in the list</string>
+     </property>
+     <property name="placeholderText">
+      <string>Filter topics</string>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QTreeView" name="topicTree"/>

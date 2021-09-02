@@ -54,19 +54,23 @@ class RqtBagHelper(Plugin):
             )
 
         self._model = QStandardItemModel()
-
-        # Set up the model used for sorting and filtering the fields
-        self._sort_model = QSortFilterProxyModel()
-        self._sort_model.setSourceModel(self._model)
-
         self._topic_tree = self._widget.findChildren(QTreeView, "topicTree")[0]
-        self._topic_tree.setModel(self._sort_model)
 
         self._model.setHorizontalHeaderLabels(["Record", "Rate", "Topic"])
         # There are only two sections so they can't be moved anyway
         self._topic_tree.header().setSectionsMovable(False)
         # self._topic_tree.header().setDefaultSectionSize(200)
         self._topic_tree.setSortingEnabled(True)
+
+        # Set up the model used for sorting and filtering the topics
+        self._sort_model = QSortFilterProxyModel()
+        self._sort_model.setSourceModel(self._model)
+        # Filter on topic column
+        self._sort_model.setFilterKeyColumn(2)
+        self._topic_tree.setModel(self._sort_model)
+        self._widget.findChildren(QLineEdit, "filterEdit")[0].textChanged.connect(
+            self._sort_model.setFilterFixedString
+        )
 
         self._widget.findChildren(QPushButton, "loadButton")[0].clicked.connect(
             self._load_file
