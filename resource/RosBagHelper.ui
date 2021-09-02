@@ -394,6 +394,40 @@
    <item>
     <widget class="QTreeView" name="topicTree"/>
    </item>
+   <item>
+    <layout class="QHBoxLayout" name="addTopicLayout">
+     <item>
+      <widget class="QPushButton" name="refreshTopicsButton">
+       <property name="text">
+        <string>Refresh topics</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="topicComboBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Type to search topics</string>
+       </property>
+       <property name="editable">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addTopicButton">
+       <property name="text">
+        <string>Add Topic</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
   </layout>
  </widget>
  <resources/>

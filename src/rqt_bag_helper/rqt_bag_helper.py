@@ -1,28 +1,29 @@
+import functools
 import os
 import signal
-
-import rospy
-import rospkg
-import yaml
 import subprocess
-import functools
 
-from qt_gui.plugin import Plugin
+import python_qt_binding.QtCore as QtCore
+import rosmaster.registrations
+import rospkg
+import rospy
+import yaml
 from python_qt_binding import loadUi
+from python_qt_binding.QtCore import QSortFilterProxyModel, QStringListModel
+from python_qt_binding.QtGui import QStandardItemModel, QStandardItem
 from python_qt_binding.QtWidgets import (
     QWidget,
     QTreeView,
     QLineEdit,
     QPushButton,
-    QLabel,
     QFileDialog,
     QSpinBox,
     QCheckBox,
     QMessageBox,
+    QComboBox,
+QCompleter,
 )
-from python_qt_binding.QtGui import QStandardItemModel, QStandardItem
-from python_qt_binding.QtCore import QSortFilterProxyModel
-import python_qt_binding.QtCore as QtCore
+from qt_gui.plugin import Plugin
 
 
 class RqtBagHelper(Plugin):
@@ -54,7 +55,7 @@ class RqtBagHelper(Plugin):
             )
 
         self._model = QStandardItemModel()
-        self._topic_tree = self._widget.findChildren(QTreeView, "topicTree")[0]
+        self._topic_tree = self._widget.findChild(QTreeView, "topicTree")
 
         self._model.setHorizontalHeaderLabels(["Record", "Rate", "Topic"])
         # There are only two sections so they can't be moved anyway
@@ -68,61 +69,84 @@ class RqtBagHelper(Plugin):
         # Filter on topic column
         self._sort_model.setFilterKeyColumn(2)
         self._topic_tree.setModel(self._sort_model)
-        self._widget.findChildren(QLineEdit, "filterEdit")[0].textChanged.connect(
+        self._widget.findChild(QLineEdit, "filterEdit").textChanged.connect(
             self._sort_model.setFilterFixedString
         )
 
-        self._widget.findChildren(QPushButton, "loadButton")[0].clicked.connect(
+        self._widget.findChild(QPushButton, "loadButton").clicked.connect(
             self._load_file
         )
 
-        self._widget.findChildren(QPushButton, "saveButton")[0].clicked.connect(
+        self._widget.findChild(QPushButton, "saveButton").clicked.connect(
             self._save_file
         )
 
-        self._record_button = self._widget.findChildren(QPushButton, "recordButton")[0]
+        self._record_button = self._widget.findChild(QPushButton, "recordButton")
         self._record_button.clicked.connect(self._toggle_record)
 
-        self._output_edit = self._widget.findChildren(QLineEdit, "outputEdit")[0]
-        self._prefix_edit = self._widget.findChildren(QLineEdit, "prefixEdit")[0]
-        self._regex_edit = self._widget.findChildren(QLineEdit, "regexEdit")[0]
-        self._exclude_regex_edit = self._widget.findChildren(
-            QLineEdit, "excludeRegexEdit"
-        )[0]
+        self._output_edit = self._widget.findChild(QLineEdit, "outputEdit")
+        self._prefix_edit = self._widget.findChild(QLineEdit, "prefixEdit")
+        self._regex_edit = self._widget.findChild(QLineEdit, "regexEdit")
+        self._exclude_regex_edit = self._widget.findChild(QLineEdit, "excludeRegexEdit")
 
-        self._limit_spin = self._widget.findChildren(QSpinBox, "limitSpinBox")[0]
-        self._max_split_spin = self._widget.findChildren(QSpinBox, "maxSplitSpinBox")[0]
-        self._size_spin = self._widget.findChildren(QSpinBox, "sizeSpinBox")[0]
-        self._duration_spin = self._widget.findChildren(QSpinBox, "durationSpinBox")[0]
-        self._buffer_spin = self._widget.findChildren(QSpinBox, "bufferSpinBox")[0]
-        self._chunk_spin = self._widget.findChildren(QSpinBox, "chunkSpinBox")[0]
+        self._limit_spin = self._widget.findChild(QSpinBox, "limitSpinBox")
+        self._max_split_spin = self._widget.findChild(QSpinBox, "maxSplitSpinBox")
+        self._size_spin = self._widget.findChild(QSpinBox, "sizeSpinBox")
+        self._duration_spin = self._widget.findChild(QSpinBox, "durationSpinBox")
+        self._buffer_spin = self._widget.findChild(QSpinBox, "bufferSpinBox")
+        self._chunk_spin = self._widget.findChild(QSpinBox, "chunkSpinBox")
 
-        self._split_check = self._widget.findChildren(QCheckBox, "splitCheckBox")[0]
+        self._split_check = self._widget.findChild(QCheckBox, "splitCheckBox")
 
-        self._lz4_check = self._widget.findChildren(QCheckBox, "lz4CheckBox")[0]
+        self._lz4_check = self._widget.findChild(QCheckBox, "lz4CheckBox")
         # Use functools to pass the widget so we can reuse the function
         self._lz4_check.stateChanged.connect(
             functools.partial(self._compression_changed, self._lz4_check)
         )
 
-        self._bz2_check = self._widget.findChildren(QCheckBox, "bz2CheckBox")[0]
+        self._bz2_check = self._widget.findChild(QCheckBox, "bz2CheckBox")
         self._bz2_check.stateChanged.connect(
             functools.partial(self._compression_changed, self._bz2_check)
         )
 
-        self._tcp_nodelay_check = self._widget.findChildren(
+        self._tcp_nodelay_check = self._widget.findChild(
             QCheckBox, "tcpNodelayCheckBox"
-        )[0]
-        self._udp_check = self._widget.findChildren(QCheckBox, "udpCheckBox")[0]
-        self._repeat_latched_check = self._widget.findChildren(
+        )
+        self._udp_check = self._widget.findChild(QCheckBox, "udpCheckBox")
+        self._repeat_latched_check = self._widget.findChild(
             QCheckBox, "repeatLatchedCheckBox"
-        )[0]
-        self._publish_check = self._widget.findChildren(QCheckBox, "publishCheckBox")[0]
-        self._advanced_check = self._widget.findChildren(QCheckBox, "advancedCheckBox")[
-            0
-        ]
+        )
+        self._publish_check = self._widget.findChild(QCheckBox, "publishCheckBox")
+        self._advanced_check = self._widget.findChild(QCheckBox, "advancedCheckBox")
         self._advanced_check.stateChanged.connect(self._advanced_changed)
 
+        # Based on https://stackoverflow.com/questions/32142411/filter-with-qcombobox-c
+        # and https://stackoverflow.com/questions/4827207/how-do-i-filter-the-pyqt-qcombobox-items-based-on-the-text-input
+        self._topic_combo = self._widget.findChild(QComboBox, "topicComboBox")
+        # This model will filter/sort the strings in the topic list model
+        self._combo_filter = QSortFilterProxyModel(self._topic_combo)
+        self._combo_filter.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self._combo_filter.setSourceModel(self._topic_combo.model())
+        # Apply a specific completer so that the combo box pops up with available options
+        self._topic_combo_complete = QCompleter(self._combo_filter, self._topic_combo)
+        self._topic_combo_complete.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
+        self._topic_combo.setCompleter(self._topic_combo_complete)
+        # When text is entered into the combo box, use it to set the filter string
+        self._topic_combo.lineEdit().textEdited.connect(self._combo_filter.setFilterFixedString)
+        # When return is pressed, add the text in the line edit to the topic list
+        self._topic_combo.lineEdit().returnPressed.connect(self._add_topic_from_combo)
+        # Never insert user-entered topics into the combobox
+        self._topic_combo.setInsertPolicy(QComboBox.NoInsert)
+
+        self._widget.findChild(QPushButton, "refreshTopicsButton").clicked.connect(
+            self._refresh_topics
+        )
+        self._widget.findChild(QPushButton, "addTopicButton").clicked.connect(
+            self._add_topic_from_combo
+        )
+
+        # Initialise the combobox with topics
+        self._refresh_topics()
         context.add_widget(self._widget)
 
     def _add_topic(self, topic_name):
@@ -143,6 +167,9 @@ class RqtBagHelper(Plugin):
         topic_item = QStandardItem(topic_name)
         topic_item.setEditable(False)
         parent.appendRow([check_item, rate_item, topic_item])
+
+    def _add_topic_from_combo(self):
+        self._add_topic(self._topic_combo.currentText())
 
     def _set_advanced(self, enabled):
         """
@@ -419,3 +446,12 @@ class RqtBagHelper(Plugin):
         """
         self._buffer_spin.setEnabled(state == QtCore.Qt.Checked)
         self._chunk_spin.setEnabled(state == QtCore.Qt.Checked)
+
+    def _refresh_topics(self):
+        """
+        Refresh the values in the topics combobox
+        :return:
+        """
+        topics = [topic_tuple[0] for topic_tuple in rospy.get_published_topics()]
+        self._topic_combo.clear()
+        self._topic_combo.addItems(topics)
