@@ -18,6 +18,7 @@ from python_qt_binding.QtWidgets import (
     QFileDialog,
     QSpinBox,
     QCheckBox,
+    QMessageBox,
 )
 from python_qt_binding.QtGui import QStandardItemModel, QStandardItem
 from python_qt_binding.QtCore import QSortFilterProxyModel
@@ -189,7 +190,7 @@ class RqtBagHelper(Plugin):
             "udp": self._get_widget_value(self._udp_check),
         }
         if (
-            self._advanced_check.getCheckState() is QtCore.Qt.Unchecked
+            self._advanced_check.checkState() is QtCore.Qt.Unchecked
             or arg_dict["buffsize"] == RqtBagHelper.BUFFSIZE_DEFAULT
             or arg_dict["chunksize"] == RqtBagHelper.CHUNKSIZE_DEFAULT
         ):
@@ -247,9 +248,18 @@ class RqtBagHelper(Plugin):
                         val = os.path.abspath(os.path.expanduser(str(val)))
                     cmd_arr.extend(["--" + arg, str(val)])
 
-        cmd_arr.extend(self._get_topics())
+        if "--output-name" in cmd_arr and "--output-prefix" in cmd_arr:
+            bad_output = QMessageBox()
+            bad_output.setWindowTitle("Invalid arguments")
+            bad_output.setText(
+                "You can't have both output file and file prefix set. Use one or the other to define the output "
+                "filename. "
+            )
+            bad_output.exec()
 
-        print(cmd_arr)
+            return []
+
+        cmd_arr.extend(self._get_topics())
 
         return cmd_arr
 
@@ -373,6 +383,8 @@ class RqtBagHelper(Plugin):
             rospy.loginfo("Stopped recording")
         else:
             cmd = self._generate_rosbag_command()
+            if not cmd:
+                return
             # Must run os.setsid to start rosbag record in a separate process group so we don't kill ourselves when
             # killing the children
             self._process = subprocess.Popen(cmd, preexec_fn=os.setsid)
