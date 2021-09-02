@@ -5,6 +5,7 @@ import rospy
 import rospkg
 import yaml
 import subprocess
+import functools
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -92,8 +93,18 @@ class RqtBagHelper(Plugin):
         self._chunk_spin = self._widget.findChildren(QSpinBox, "chunkSpinBox")[0]
 
         self._split_check = self._widget.findChildren(QCheckBox, "splitCheckBox")[0]
+
         self._lz4_check = self._widget.findChildren(QCheckBox, "lz4CheckBox")[0]
+        # Use functools to pass the widget so we can reuse the function
+        self._lz4_check.stateChanged.connect(
+            functools.partial(self._compression_changed, self._lz4_check)
+        )
+
         self._bz2_check = self._widget.findChildren(QCheckBox, "bz2CheckBox")[0]
+        self._bz2_check.stateChanged.connect(
+            functools.partial(self._compression_changed, self._bz2_check)
+        )
+
         self._tcp_nodelay_check = self._widget.findChildren(
             QCheckBox, "tcpNodelayCheckBox"
         )[0]
@@ -105,6 +116,7 @@ class RqtBagHelper(Plugin):
         self._advanced_check = self._widget.findChildren(QCheckBox, "advancedCheckBox")[
             0
         ]
+        self._advanced_check.stateChanged.connect(self._advanced_changed)
 
         context.add_widget(self._widget)
 
@@ -151,9 +163,13 @@ class RqtBagHelper(Plugin):
     def _generate_arg_dict(self):
         """
         Generate a dict of all the arg values, in the format of the yaml
+
+        If the advanced checkbox is unchecked, buffsize and chunksize will not be in the dict. They will also be
+        excluded if they are set to the default values
+
         :return:
         """
-        return {
+        arg_dict = {
             "buffsize": self._get_widget_value(self._buffer_spin),
             "bz2": self._get_widget_value(self._bz2_check),
             "chunksize": self._get_widget_value(self._chunk_spin),
@@ -172,6 +188,15 @@ class RqtBagHelper(Plugin):
             "tcpnodelay": self._get_widget_value(self._tcp_nodelay_check),
             "udp": self._get_widget_value(self._udp_check),
         }
+        if (
+            self._advanced_check.getCheckState() is QtCore.Qt.Unchecked
+            or arg_dict["buffsize"] == RqtBagHelper.BUFFSIZE_DEFAULT
+            or arg_dict["chunksize"] == RqtBagHelper.CHUNKSIZE_DEFAULT
+        ):
+            del arg_dict["buffsize"]
+            del arg_dict["chunksize"]
+
+        return arg_dict
 
     def _get_topics(self, only_checked=True):
         """
@@ -354,3 +379,27 @@ class RqtBagHelper(Plugin):
             self._recording = True
             self._record_button.setText("Stop recording")
             rospy.loginfo("Started recording")
+
+    def _compression_changed(self, widget, state):
+        """
+        Maintain valid state of compression checkboxes. Linked to the stateChanged signal
+
+        :param widget: The checkbox whose state changed
+        :param state: The new state of the checkbox
+        :return:
+        """
+        if state == QtCore.Qt.Checked:
+            if widget == self._lz4_check:
+                self._bz2_check.setCheckState(QtCore.Qt.Unchecked)
+            elif widget == self._bz2_check:
+                self._lz4_check.setCheckState(QtCore.Qt.Unchecked)
+
+    def _advanced_changed(self, state):
+        """
+        Enable or disable the advanced options depending on the state of the advanced checkbox
+
+        :param state: New state of the advanced checkbox
+        :return:
+        """
+        self._buffer_spin.setEnabled(state == QtCore.Qt.Checked)
+        self._chunk_spin.setEnabled(state == QtCore.Qt.Checked)
