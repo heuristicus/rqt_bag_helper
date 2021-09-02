@@ -2,9 +2,9 @@ import functools
 import os
 import signal
 import subprocess
+from rosgraph.masterapi import Master
 
 import python_qt_binding.QtCore as QtCore
-import rosmaster.registrations
 import rospkg
 import rospy
 import yaml
@@ -21,7 +21,7 @@ from python_qt_binding.QtWidgets import (
     QCheckBox,
     QMessageBox,
     QComboBox,
-QCompleter,
+    QCompleter,
 )
 from qt_gui.plugin import Plugin
 
@@ -129,10 +129,14 @@ class RqtBagHelper(Plugin):
         self._combo_filter.setSourceModel(self._topic_combo.model())
         # Apply a specific completer so that the combo box pops up with available options
         self._topic_combo_complete = QCompleter(self._combo_filter, self._topic_combo)
-        self._topic_combo_complete.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
+        self._topic_combo_complete.setCompletionMode(
+            QCompleter.UnfilteredPopupCompletion
+        )
         self._topic_combo.setCompleter(self._topic_combo_complete)
         # When text is entered into the combo box, use it to set the filter string
-        self._topic_combo.lineEdit().textEdited.connect(self._combo_filter.setFilterFixedString)
+        self._topic_combo.lineEdit().textEdited.connect(
+            self._combo_filter.setFilterFixedString
+        )
         # When return is pressed, add the text in the line edit to the topic list
         self._topic_combo.lineEdit().returnPressed.connect(self._add_topic_from_combo)
         # Never insert user-entered topics into the combobox
@@ -151,7 +155,8 @@ class RqtBagHelper(Plugin):
 
     def _add_topic(self, topic_name):
         """
-        Add a topic to the tree
+        Add a topic to the tree, ignoring duplicates
+
         :param topic_name: Name of the topic to add
         :return:
         """
@@ -173,6 +178,11 @@ class RqtBagHelper(Plugin):
         parent.appendRow([check_item, rate_item, topic_item])
 
     def _add_topic_from_combo(self):
+        """
+        Add a topic using the selected text of the combobox
+
+        :return:
+        """
         self._add_topic(self._topic_combo.currentText())
 
     def _set_advanced(self, enabled):
@@ -456,6 +466,7 @@ class RqtBagHelper(Plugin):
         Refresh the values in the topics combobox
         :return:
         """
-        topics = [topic_tuple[0] for topic_tuple in rospy.get_published_topics()]
+        master = Master("/bag_helper")
+        topics = sorted([topic_tuple[0] for topic_tuple in master.getTopicTypes()])
         self._topic_combo.clear()
         self._topic_combo.addItems(topics)
