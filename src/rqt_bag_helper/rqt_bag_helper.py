@@ -32,6 +32,7 @@ class RqtBagHelper(Plugin):
 
     BUFFSIZE_DEFAULT = 256
     CHUNKSIZE_DEFAULT = 768
+    RATE_UPDATE_TIMER_DURATION = 2
 
     def __init__(self, context):
         super(RqtBagHelper, self).__init__(context)
@@ -533,7 +534,9 @@ class RqtBagHelper(Plugin):
                 # when the window is closed this will fail
                 pass
             self._recording = False
-            self._stop_rate_monitor()
+            if not rospy.is_shutdown():
+                # Don't bother stopping the rate monitor, it will all get killed anyway
+                self._stop_rate_monitor()
             rospy.loginfo("Stopped recording")
 
     def _start_recording(self):
@@ -607,8 +610,8 @@ class RqtBagHelper(Plugin):
         """
         # Stop timer which triggers background colour updates
         self._topic_hz_timer.shutdown()
-        for topic_name, subscriber in self._topic_hz_subs.items():
-            subscriber.unregister()
+        for topic_name, sub_dict in self._topic_hz_subs.items():
+            sub_dict["subscriber"].unregister()
         self._topic_hz = None
         self._reset_background_colours()
 
@@ -621,12 +624,33 @@ class RqtBagHelper(Plugin):
         """
         self._topic_hz = ROSTopicHz(-1)
         self._topic_hz_subs = {}
-        for topic in self._get_topics():
-            self._topic_hz_subs[topic] = rospy.Subscriber(
-                topic, rospy.AnyMsg, self._topic_hz.callback_hz, callback_args=topic
-            )
 
-        self._topic_hz_timer = rospy.Timer(rospy.Duration(2), self._update_rate_status)
+        def track_messages_cb(msg, topic):
+            """
+            Indirect callback for rate subscriber
+
+            Need to do this to track whether a topic has ever received a message so that we don't set a black background
+            for topics which receive values infrequently, like latched topics
+
+            :param msg: The message received on the topic
+            :param topic: The topic on which the message was received
+            :return:
+            """
+            if not self._topic_hz_subs[topic].get("received"):
+                self._topic_hz_subs[topic]["received"] = True
+            self._topic_hz.callback_hz(msg, topic)
+
+        for topic in self._get_topics():
+            self._topic_hz_subs[topic] = {
+                "subscriber": rospy.Subscriber(
+                    topic, rospy.AnyMsg, track_messages_cb, callback_args=topic
+                )
+            }
+
+        self._topic_hz_timer = rospy.Timer(
+            rospy.Duration(RqtBagHelper.RATE_UPDATE_TIMER_DURATION),
+            self._update_rate_status,
+        )
 
     def _reset_background_colours(self):
         """
@@ -674,10 +698,27 @@ class RqtBagHelper(Plugin):
             min_rate_item = self._model.itemFromIndex(min_rate_ind)
             max_rate_item = self._model.itemFromIndex(max_rate_ind)
             if not rate_tuple:
-                min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.black)))
-                max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.black)))
-                min_rate_item.setToolTip("No messages received")
-                max_rate_item.setToolTip("No messages received")
+                if self._topic_hz_subs[topic].get("received"):
+                    # If we have received at least one message on this subscriber, set the background to gray rather
+                    # than black. This could indicate a problem for certain message types, but be fine for others
+                    # like latched topics
+                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.gray)))
+                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.gray)))
+                    min_rate_item.setToolTip(
+                        "No messages received in the past {} seconds".format(RqtBagHelper.RATE_UPDATE_TIMER_DURATION)
+                    )
+                    max_rate_item.setToolTip(
+                        "No messages received in the past {} seconds".format(RqtBagHelper.RATE_UPDATE_TIMER_DURATION)
+                    )
+                else:
+                    min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.black)))
+                    max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.black)))
+                    min_rate_item.setToolTip(
+                        "Never received any messages on this topic"
+                    )
+                    max_rate_item.setToolTip(
+                        "Never received any messages on this topic"
+                    )
             else:
                 rate, min_delta, max_delta, std_dev, _ = rate_tuple
                 min_rate = self._model.data(min_rate_ind, QtCore.Qt.DisplayRole)
