@@ -398,7 +398,9 @@ class RqtBagHelper(Plugin):
         buffsize = args.get("buffsize")
         chunksize = args.get("chunksize")
 
-        if buffsize or chunksize:
+        if (buffsize and buffsize != RqtBagHelper.BUFFSIZE_DEFAULT) or (
+            chunksize and chunksize != RqtBagHelper.CHUNKSIZE_DEFAULT
+        ):
             self._set_advanced(True)
         else:
             self._set_advanced(False)
@@ -409,8 +411,8 @@ class RqtBagHelper(Plugin):
         self._set_widget_from_dict(args, "lz4", self._lz4_check, False)
         self._set_widget_from_dict(args, "bz2", self._bz2_check, False)
         # If both compression types are set, default to using bz2
-        rospy.logwarn("Both bz2 and lz4 compression are set to true, using bz2")
         if lz4 and bz2:
+            rospy.logwarn("Both bz2 and lz4 compression are set to true, using bz2")
             self._lz4_check.setCheckState(QtCore.Qt.Unchecked)
 
         self._set_widget_from_dict(args, "duration", self._duration_spin, 0)
@@ -498,9 +500,11 @@ class RqtBagHelper(Plugin):
                 pass
             self._recording = False
             # Unregister all the subscribers created to monitor the rates
-            for topic in self._topic_hz_subs:
-                topic.unregister()
+            self._topic_hz_timer.shutdown()
+            for topic_name, subscriber in self._topic_hz_subs.items():
+                subscriber.unregister()
             self._topic_hz = None
+            self._reset_background_colours()
             rospy.loginfo("Stopped recording")
 
     def _start_recording(self):
@@ -561,15 +565,26 @@ class RqtBagHelper(Plugin):
 
     def _setup_rate_monitor(self):
         self._topic_hz = ROSTopicHz(-1)
-        self._topic_hz_subs = []
+        self._topic_hz_subs = {}
         for topic in self._get_topics():
-            self._topic_hz_subs.append(
-                rospy.Subscriber(
-                    topic, rospy.AnyMsg, self._topic_hz.callback_hz, callback_args=topic
-                )
+            self._topic_hz_subs[topic] = rospy.Subscriber(
+                topic, rospy.AnyMsg, self._topic_hz.callback_hz, callback_args=topic
             )
 
         self._topic_hz_timer = rospy.Timer(rospy.Duration(2), self._update_status)
+
+    def _reset_background_colours(self):
+        """
+        Reset the background colours of the min and max rate items to white
+        :return:
+        """
+        for ind in range(0, self._model.rowCount()):
+            min_rate_ind = self._model.index(ind, self._headers.index("Min rate"))
+            max_rate_ind = self._model.index(ind, self._headers.index("Max rate"))
+            min_rate_item = self._model.itemFromIndex(min_rate_ind)
+            max_rate_item = self._model.itemFromIndex(max_rate_ind)
+            min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
+            max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
 
     def _update_status(self, _):
         if rospy.is_shutdown():
