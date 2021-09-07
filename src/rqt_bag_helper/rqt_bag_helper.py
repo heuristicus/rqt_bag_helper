@@ -63,9 +63,8 @@ class RqtBagHelper(Plugin):
         self._topic_tree = self._widget.findChild(QTreeView, "topicTree")
         self._headers = ["Record", "Min rate", "Max rate", "Topic"]
         self._model.setHorizontalHeaderLabels(self._headers)
-        # There are only two sections so they can't be moved anyway
+        # Don't allow moving sections around
         self._topic_tree.header().setSectionsMovable(False)
-        # self._topic_tree.header().setDefaultSectionSize(200)
         self._topic_tree.setSortingEnabled(True)
 
         # Set up the model used for sorting and filtering the topics
@@ -74,6 +73,7 @@ class RqtBagHelper(Plugin):
         # Filter on topic column
         self._sort_model.setFilterKeyColumn(self._headers.index("Topic"))
         self._topic_tree.setModel(self._sort_model)
+        # Whenever the text in the topic filter changes, update the filter's string to further filter the topic list
         self._widget.findChild(QLineEdit, "filterEdit").textChanged.connect(
             self._sort_model.setFilterFixedString
         )
@@ -159,6 +159,11 @@ class RqtBagHelper(Plugin):
         context.add_widget(self._widget)
 
     def _shutdown(self):
+        """
+        Called when ros shuts down
+
+        :return:
+        """
         print("shutting down")
         if self._recording:
             self._stop_recording()
@@ -203,6 +208,7 @@ class RqtBagHelper(Plugin):
     def _add_topic_from_yaml(self, topic):
         """
         Add a topic from the yaml definition file
+
         :param topic: String or dict representing the topic
         :return:
         """
@@ -226,6 +232,7 @@ class RqtBagHelper(Plugin):
     def _set_advanced(self, enabled):
         """
         Enable or disable the advanced settings for buffsize and chunksize
+
         :param enabled: True to enable, false to disable
         :return:
         """
@@ -237,6 +244,12 @@ class RqtBagHelper(Plugin):
 
     @staticmethod
     def _get_widget_value(widget):
+        """
+        Helper for retrieving a widget's value. Uses the correct function to retrieve its contents
+
+        :param widget:
+        :return: The value that the widget contains
+        """
         if type(widget) == QSpinBox:
             return widget.value()
         if type(widget) == QCheckBox:
@@ -251,7 +264,7 @@ class RqtBagHelper(Plugin):
         If the advanced checkbox is unchecked, buffsize and chunksize will not be in the dict. They will also be
         excluded if they are set to the default values
 
-        :return:
+        :return: A dictionary of all the argument values retrieved from the UI widgets
         """
         arg_dict = {
             "buffsize": self._get_widget_value(self._buffer_spin),
@@ -284,7 +297,7 @@ class RqtBagHelper(Plugin):
 
     def _get_topics(self, only_checked=True):
         """
-        Get the topics in the tree view
+        Get the topics listed in the tree view
 
         :param only_checked: If true, return only those topics in the list which are checked
         :return: List of topics
@@ -314,7 +327,8 @@ class RqtBagHelper(Plugin):
         """
         Get the min and max rates for topics, if specified
 
-        :return:
+        :return: A dictionary which has topics as keys, and each topic has an associated dict with an empty dict if
+        there are no rates set for the topic, or min/max keys with the rate
         """
         rates = {}
         for ind in range(0, self._model.rowCount()):
@@ -380,6 +394,7 @@ class RqtBagHelper(Plugin):
     def _set_widget_from_dict(arg_dict, arg_name, widget, default_value):
         """
         Set the value of a widget using a dict containing the args
+
         :param arg_dict: Dict containing the args
         :param arg_name: Name of the argument to load to this widget
         :param widget: Widget to set the value of
@@ -395,7 +410,12 @@ class RqtBagHelper(Plugin):
             widget.setText(arg_val)
 
     def _load_args(self, args):
+        """
+        Load arguments from the given dictionary into the various argument widgets in the UI
 
+        :param args: A dictionary containing arguments to rosbag
+        :return:
+        """
         self._set_widget_from_dict(
             args, "buffsize", self._buffer_spin, RqtBagHelper.BUFFSIZE_DEFAULT
         )
@@ -441,6 +461,7 @@ class RqtBagHelper(Plugin):
     def _load_file(self):
         """
         Ask the user for a yaml file to load the bag definition
+
         :return:
         """
         options = QFileDialog.Options()
@@ -468,6 +489,7 @@ class RqtBagHelper(Plugin):
     def _save_file(self):
         """
         Open a dialog to ask the user where they want to save the yaml definition for this bag
+
         :return:
         """
         options = QFileDialog.Options()
@@ -496,6 +518,11 @@ class RqtBagHelper(Plugin):
             f.write(yaml.safe_dump(bag_def))
 
     def _stop_recording(self):
+        """
+        Kill the rosbag command that was started, and stop rate monitoring
+
+        :return:
+        """
         if self._recording:
             # Because the rosbag record process actually spawns its own subprocess, we have to kill the whole process
             # group
@@ -506,15 +533,15 @@ class RqtBagHelper(Plugin):
                 # when the window is closed this will fail
                 pass
             self._recording = False
-            # Unregister all the subscribers created to monitor the rates
-            self._topic_hz_timer.shutdown()
-            for topic_name, subscriber in self._topic_hz_subs.items():
-                subscriber.unregister()
-            self._topic_hz = None
-            self._reset_background_colours()
+            self._stop_rate_monitor()
             rospy.loginfo("Stopped recording")
 
     def _start_recording(self):
+        """
+        Generate a rosbag command and send it to subprocess.Popen to run it. Also start rate monitoring.
+
+        :return:
+        """
         cmd = self._generate_rosbag_command()
         if not cmd:
             return
@@ -523,12 +550,13 @@ class RqtBagHelper(Plugin):
         self._process = subprocess.Popen(cmd, preexec_fn=os.setsid)
         self._recording = True
         self._record_button.setText("Stop recording")
-        self._setup_rate_monitor()
+        self._start_rate_monitor()
         rospy.loginfo("Started recording")
 
     def _toggle_record(self):
         """
         Start or stop recording.
+
         :return:
         """
         if self._recording:
@@ -563,6 +591,7 @@ class RqtBagHelper(Plugin):
     def _refresh_topics(self):
         """
         Refresh the values in the topics combobox
+
         :return:
         """
         master = Master("/bag_helper")
@@ -570,7 +599,26 @@ class RqtBagHelper(Plugin):
         self._topic_combo.clear()
         self._topic_combo.addItems(topics)
 
-    def _setup_rate_monitor(self):
+    def _stop_rate_monitor(self):
+        """
+        Stop the rate monitoring and unregister all its subscribers
+
+        :return:
+        """
+        # Stop timer which triggers background colour updates
+        self._topic_hz_timer.shutdown()
+        for topic_name, subscriber in self._topic_hz_subs.items():
+            subscriber.unregister()
+        self._topic_hz = None
+        self._reset_background_colours()
+
+    def _start_rate_monitor(self):
+        """
+        Initialise the rate monitor, intialising subscribers and a timer to update item backgrounds based on detected
+        rates
+
+         :return:
+        """
         self._topic_hz = ROSTopicHz(-1)
         self._topic_hz_subs = {}
         for topic in self._get_topics():
@@ -578,11 +626,12 @@ class RqtBagHelper(Plugin):
                 topic, rospy.AnyMsg, self._topic_hz.callback_hz, callback_args=topic
             )
 
-        self._topic_hz_timer = rospy.Timer(rospy.Duration(2), self._update_status)
+        self._topic_hz_timer = rospy.Timer(rospy.Duration(2), self._update_rate_status)
 
     def _reset_background_colours(self):
         """
         Reset the background colours of the min and max rate items to white
+
         :return:
         """
         for ind in range(0, self._model.rowCount()):
@@ -593,7 +642,13 @@ class RqtBagHelper(Plugin):
             min_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
             max_rate_item.setBackground(QBrush(QColor(QtCore.Qt.white)))
 
-    def _update_status(self, _):
+    def _update_rate_status(self, _):
+        """
+        Update the backgrounds of rate items in the tree based on the rate of the corresponding topic
+
+        :param _: Ignored parameter containing the timer that calls this function
+        :return:
+        """
         if rospy.is_shutdown():
             return
 
