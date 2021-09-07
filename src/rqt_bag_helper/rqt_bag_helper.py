@@ -182,10 +182,17 @@ class RqtBagHelper(Plugin):
         check_item.setCheckable(True)
         check_item.setCheckState(QtCore.Qt.Checked)
 
-        min_rate_item = QStandardItem(min_rate)
+        # If passing just an int nothing will be displayed
+        if min_rate:
+            min_rate_item = QStandardItem(str(min_rate))
+        else:
+            min_rate_item = QStandardItem()
         min_rate_item.setEditable(True)
 
-        max_rate_item = QStandardItem(max_rate)
+        if max_rate:
+            max_rate_item = QStandardItem(str(max_rate))
+        else:
+            max_rate_item = QStandardItem()
         max_rate_item.setEditable(True)
 
         topic_item = QStandardItem(topic_name)
