@@ -1,0 +1,51 @@
+args:
+  buffsize: 256
+  bz2: true
+  duration: 0
+  exclude: ''
+  limit: 0
+  lz4: false
+  max-splits: 0
+  output-name: ''
+  output-prefix: ~/jackal_gazebo.bag
+  publish: false
+  regex: ''
+  repeat-latched: false
+  size: 200
+  split: true
+  tcpnodelay: false
+  udp: false
+topics:
+- /amcl_pose
+- /bluetooth_teleop/cmd_vel
+- /cmd_vel
+- name: /diagnostics
+  rate:
+    max: 10.0
+- /e_stop
+- name: /front/scan
+  rate:
+    min: 48.0
+- /imu/data
+- /initialpose
+- /jackal_velocity_controller/cmd_vel
+- /jackal_velocity_controller/odom
+- /joint_states
+- /joy_teleop/cmd_vel
+- /map
+- /map_metadata
+- /move_base/NavfnROS/plan
+- /move_base/TrajectoryPlannerROS/global_plan
+- /move_base/TrajectoryPlannerROS/local_plan
+- /move_base/global_costmap/costmap
+- /move_base/goal
+- /move_base/local_costmap/costmap
+- /move_base_simple/goal
+- name: /odometry/filtered
+  rate:
+    max: 42.0
+    min: 38.0
+- /particlecloud
+- /set_pose
+- /tf
+- /tf_static
