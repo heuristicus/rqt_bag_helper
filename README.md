@@ -2,6 +2,8 @@
 
 A GUI to load topics from a yaml file, select which ones you want to record in the bag, and monitor them while the bag is recording.
 
+![recording and monitoring the rates of topics](resource/images/jackal_after_record.png)
+
 # Usage
 
 To start, you will need to have a roscore running. Then, run
@@ -136,3 +138,10 @@ And load the yaml. You will see something like
 
 ![ui after loading jackal config](resource/images/jackal_before_record.png)
 
+Everything is already set up to record, so just press the record button to start recording a bag.
+
+You will see the rows update to show colours as mentioned in the section about rates
+
+![ui after starting to record](resource/images/jackal_after_record.png)
+
+You can play around with the values of the min and max rate to add topics to monitor.
