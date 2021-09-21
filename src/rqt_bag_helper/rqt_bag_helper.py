@@ -465,6 +465,7 @@ class RqtBagHelper(Plugin):
 
         :return:
         """
+        self._model.removeRows(0, self._model.rowCount())
         options = QFileDialog.Options()
         filename, _ = QFileDialog.getOpenFileName(
             self._widget,
